@@ -54,7 +54,7 @@ local function fill_in_function(context)
     end
 
     local request = Request.new(context)
-    request:add_prompt_content(context._99.prompts.prompts.fill_in_function)
+    request:add_prompt_content(context._99.prompts.prompts.fill_in_function())
 
     local request_status = RequestStatus.new(
         250,
