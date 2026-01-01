@@ -239,7 +239,7 @@ function Logger:_cache_log(line)
         )
         local a_time = logger_cache[a].last_access
         local b_time = logger_cache[b].last_access
-        return b_time > a_time
+        return a_time > b_time
     end)
 
     if not new_cache then

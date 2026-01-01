@@ -67,14 +67,14 @@ describe("Mark", function()
     end)
 
     it("should create mark one line above the range start", function()
+        local above_point = Point:new(2, 14)
         local start_point = Point:new(3, 5)
         local end_point = Point:new(4, 3)
         local range = Range:new(buffer, start_point, end_point)
         local mark = Mark.mark_above_range(range)
         local mark_point = Point.from_mark(mark)
-        local row_above = Point:new(2, 1)
 
-        eq(row_above, mark_point)
+        eq(above_point, mark_point)
 
         mark:delete()
     end)
