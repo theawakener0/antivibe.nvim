@@ -148,15 +148,10 @@ function _99.fill_in_function()
     ops.fill_in_function(get_context("fill_in_function"))
 end
 
-function fizz_buzz(count)
-    for i = 1, count do
-    end
-end
-
 function _99.visual_prompt()
     local context = get_context("over-range-with-prompt")
     context.logger:debug("start")
-    capture_prompt(function(success, response)
+    Window.capture_input(function(success, response)
         context.logger:debug(
             "capture_prompt",
             "success",
@@ -167,7 +162,7 @@ function _99.visual_prompt()
         if success then
             _99.visual(response)
         end
-    end)
+    end, {})
 end
 
 --- @param prompt string?
