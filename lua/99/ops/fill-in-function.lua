@@ -78,7 +78,7 @@ local function fill_in_function(context, additional_prompt)
         context:clear_marks()
         request:cancel()
         request_status:stop()
-    end)
+    end, "fill_in_function")
 
     request:start({
         on_stdout = function(line)

@@ -177,7 +177,7 @@ Requirements:
         context:clear_marks()
         request:cancel()
         status_display:stop()
-    end)
+    end, "generate_tests")
 
     request:start({
         on_stdout = function(line)

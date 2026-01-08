@@ -39,7 +39,7 @@ local function over_range(context, range, prompt)
         bottom_status:stop()
         context:clear_marks()
         request:cancel()
-    end)
+    end, "over_range")
 
     local full_prompt = context._99.prompts.prompts.visual_selection(range)
     if prompt then

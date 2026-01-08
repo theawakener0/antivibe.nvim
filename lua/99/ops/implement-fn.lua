@@ -66,7 +66,7 @@ local function implement_fn(context)
         request:cancel()
         code_placement:stop()
         at_call_site:stop()
-    end)
+    end, "implement_fn")
 
     request:add_prompt_content(context._99.prompts.prompts.implement_function)
     request:start({

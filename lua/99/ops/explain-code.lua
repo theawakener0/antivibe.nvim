@@ -177,7 +177,7 @@ local function explain_code(context, prompt)
         context:clear_marks()
         request:cancel()
         status_display:stop()
-    end)
+    end, "explain_code")
 
     request:start({
         on_stdout = function(line)

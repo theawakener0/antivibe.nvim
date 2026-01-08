@@ -343,7 +343,7 @@ Language: %s
         context:clear_marks()
         request:cancel()
         status_display:stop()
-    end)
+    end, "inline_doc")
 
     request:start({
         on_stdout = function(line)
