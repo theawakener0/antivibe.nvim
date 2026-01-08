@@ -1,3 +1,4 @@
+; JavaScript uses the same grammar as TypeScript for functions
 (function_declaration) @context.function
 (arrow_function) @context.function
 (method_definition) @context.function

@@ -49,8 +49,16 @@ local CONFIG_SCHEMA = {
         },
         validate = function(val)
             if type(val) ~= "table" then return false, "must be a table" end
-            if val.level and type(val.level) == "string" and not val.level:match("^[A-Z]+$") then
-                return false, "level must be uppercase (DEBUG, INFO, WARN, ERROR, FATAL)"
+            if val.level ~= nil then
+                local level_type = type(val.level)
+                if level_type == "string" then
+                    local valid_levels = { DEBUG = true, INFO = true, WARN = true, ERROR = true, FATAL = true }
+                    if not valid_levels[val.level:upper()] then
+                        return false, "level must be one of: DEBUG, INFO, WARN, ERROR, FATAL"
+                    end
+                elseif level_type ~= "number" then
+                    return false, "level must be a string or number"
+                end
             end
             if val.path and type(val.path) ~= "string" then
                 return false, "path must be a string or nil"

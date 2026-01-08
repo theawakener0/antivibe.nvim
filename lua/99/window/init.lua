@@ -129,11 +129,23 @@ local function highlight_error(window)
     end
 end
 
+--- Setup common keymaps for popup windows (q and <Esc> to close)
+--- @param window _99.window.Window
+local function setup_popup_keymaps(window)
+    vim.keymap.set("n", "q", function()
+        M.clear_active_popups()
+    end, { buffer = window.buf_id, nowait = true, desc = "Close window" })
+
+    vim.keymap.set("n", "<Esc>", function()
+        M.clear_active_popups()
+    end, { buffer = window.buf_id, nowait = true, desc = "Close window" })
+end
+
 --- @param error_text string
 --- @return _99.window.Window
 function M.display_error(error_text)
     local window = create_floating_window(create_window_top_config(), {
-        title = " 99 Error ",
+        title = " 99 Error (press q or <Esc> to close) ",
         border = "rounded",
     })
     local lines = vim.split(error_text, "\n")
@@ -147,6 +159,7 @@ function M.display_error(error_text)
 
     vim.api.nvim_buf_set_lines(window.buf_id, 0, -1, false, lines)
     highlight_error(window)
+    setup_popup_keymaps(window)
     return window
 end
 
@@ -208,11 +221,12 @@ function M.display_full_screen_message(lines)
     --- this basic nonsense
     M.clear_active_popups()
     local window = create_floating_window(create_window_full_screen(), {
-        title = " 99 ",
+        title = " 99 (press q or <Esc> to close) ",
         border = "rounded",
     })
     local display_lines = ensure_no_new_lines(lines)
     vim.api.nvim_buf_set_lines(window.buf_id, 0, -1, false, display_lines)
+    setup_popup_keymaps(window)
 end
 
 --- @return _99.window.Window
@@ -232,12 +246,13 @@ function M.display_centered_message(message)
     M.clear_active_popups()
     local config = create_centered_window()
     local window = create_floating_window(config, {
-        title = " 99 ",
+        title = " 99 (press q or <Esc> to close) ",
         border = "rounded",
     })
     local display_lines = ensure_no_new_lines(message)
 
     vim.api.nvim_buf_set_lines(window.buf_id, 0, -1, false, display_lines)
+    setup_popup_keymaps(window)
 
     return window
 end
