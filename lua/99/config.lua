@@ -49,7 +49,7 @@ local CONFIG_SCHEMA = {
         },
         validate = function(val)
             if type(val) ~= "table" then return false, "must be a table" end
-            if val.level and not val.level:match("^[A-Z]+$") then
+            if val.level and type(val.level) == "string" and not val.level:match("^[A-Z]+$") then
                 return false, "level must be uppercase (DEBUG, INFO, WARN, ERROR, FATAL)"
             end
             if val.path and type(val.path) ~= "string" then

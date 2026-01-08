@@ -187,12 +187,21 @@ end
 
 --- @param opts _99.Logger.Options?
 function Logger:configure(opts)
+    error("CONFIGURE FUNCTION CALLED")
+    self._configure_called = true
     if not opts then
         return
     end
 
     if opts.level then
-        self:set_level(opts.level)
+        local level = opts.level
+        if type(level) == "string" then
+            level = levels[level] or levels.INFO
+        end
+        if type(level) ~= "number" then
+            error("Invalid logger level: " .. tostring(level) .. " (type: " .. type(level) .. ")")
+        end
+        self:set_level(level)
     end
 
     if opts.path == "print" then
