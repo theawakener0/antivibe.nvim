@@ -81,6 +81,12 @@ function StatusLineManager:disable()
     return manager
 end
 
+--- @param state _99.State
+function M.init(state)
+    state.ui_statusline_manager = StatusLineManager.new()
+    state.ui_statusline_manager:enable()
+end
+
 M.StatusLineManager = StatusLineManager
 
 return M
