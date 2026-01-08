@@ -47,7 +47,8 @@ local function fill_in_function(context, additional_prompt)
     local func = ts.containing_function(context, cursor)
 
     if not func then
-        logger:fatal("fill_in_function: unable to find any containing function")
+        logger:warn("fill_in_function: unable to find any containing function")
+        Window.display_error("Please place cursor inside a function to use fill_in_function.")
         return
     end
 
