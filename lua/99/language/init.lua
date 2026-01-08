@@ -78,6 +78,9 @@ end
 --- @return string
 function M.log_item(_, item_name, buffer)
     local lang, file_type = get_langauge(buffer)
+    if not lang then
+        return item_name
+    end
     validate_function(lang.log_item, file_type)
 
     return lang.log_item(item_name)

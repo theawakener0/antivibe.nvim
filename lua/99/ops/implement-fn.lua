@@ -6,6 +6,7 @@ local Point = geo.Point
 local Mark = require("99.ops.marks")
 local RequestStatus = require("99.ops.request_status")
 local make_clean_up = require("99.ops.clean-up")
+local Window = require("99.window")
 
 --- @param context _99.RequestContext
 --- @param response string
@@ -23,7 +24,7 @@ local function implement_fn(context)
     local ts = editor.treesitter
     local cursor = Point:from_cursor()
     local buffer = vim.api.nvim_get_current_buf()
-    local fn_call = ts.fn_call(buffer, cursor)
+    local fn_call = ts.fn_call(context, cursor)
     local logger = context.logger:set_area("implement_fn")
 
     if not fn_call then
@@ -37,7 +38,7 @@ local function implement_fn(context)
     local request = Request.new(context)
 
     context.marks.end_of_fn_call = Mark.mark_end_of_range(buffer, range)
-    local func = ts.containing_function(buffer, cursor)
+    local func = ts.containing_function(context, cursor)
     if func then
         context.marks.code_placement = Mark.mark_above_func(buffer, func)
     else

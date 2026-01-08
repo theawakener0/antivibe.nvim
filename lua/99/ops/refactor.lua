@@ -6,9 +6,9 @@ local Range = geo.Range
 local Point = geo.Point
 local editor = require("99.editor")
 local lsp_util = require("99.lsp")
+local lsp_context = require("99.lsp.context")
 local make_clean_up = require("99.ops.clean-up")
 local Window = require("99.window")
-local Logger = require("99.logger.logger")
 
 local M = {}
 
@@ -112,9 +112,10 @@ local function refactor(context, prompt)
     local cursor = Point:from_cursor()
 
     local range = Range.from_visual_selection()
+    local ref_type
 
     if not range.start or not range.end_ then
-        local ref_type = select_refactor_type(context)
+        ref_type = select_refactor_type(context)
         if not ref_type then
             logger:debug("refactor: no type selected")
             return
@@ -141,8 +142,8 @@ local function refactor(context, prompt)
     marks.refactor_mark = Mark.mark_above_range(range)
     context.marks = marks
 
-    local lsp_info = lsp_util.get_references(buffer, range.start:to_ts())
-    local symbol_info = lsp_util.get_symbol_info(context, range.start)
+    local lsp_info = lsp_util.get_references(buffer, range.start.row, range.start.col)
+    local symbol_info = lsp_context.get_symbol_info(context, range.start)
 
     local full_prompt = ref_type.prompt .. "\n\n"
 

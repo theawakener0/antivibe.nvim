@@ -78,7 +78,7 @@ function StatusLineManager:disable()
         pcall(vim.api.nvim_del_autocmd_by_id, self.autocommand)
     end
 
-    return manager
+    return self
 end
 
 --- @param state _99.State

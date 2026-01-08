@@ -254,7 +254,8 @@ end
 --- @return string? doc_pattern
 local function has_existing_doc(range)
     local first_line = range.start:get_text_line(range.buffer)
-    local format = get_doc_format(range.buffer)
+    local file_type = vim.api.nvim_get_option_value("filetype", { buf = range.buffer })
+    local format = get_doc_format(file_type)
 
     if not format then
         return false, nil

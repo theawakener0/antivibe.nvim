@@ -242,6 +242,63 @@ function M.display_centered_message(message)
     return window
 end
 
+--- @param lines string[]
+--- @return string?
+function M.capture_input_sync(lines)
+    local result = nil
+    local done = false
+
+    M.clear_active_popups()
+    local config = create_centered_window()
+    local win = create_floating_window(config, {
+        title = " 99 Prompt ",
+        border = "rounded",
+    })
+
+    vim.api.nvim_buf_set_lines(win.buf_id, 0, -1, false, lines)
+    vim.api.nvim_buf_set_name(win.buf_id, "99-prompt-sync")
+    vim.wo[win.win_id].number = true
+    vim.bo[win.buf_id].filetype = "99"
+    vim.bo[win.buf_id].buftype = "acwrite"
+    vim.bo[win.buf_id].bufhidden = "wipe"
+    vim.bo[win.buf_id].swapfile = false
+
+    local group = vim.api.nvim_create_augroup(
+        "99_present_prompt_sync_" .. win.buf_id,
+        { clear = true }
+    )
+
+    vim.api.nvim_create_autocmd("BufWriteCmd", {
+        group = group,
+        buffer = win.buf_id,
+        callback = function()
+            local buf_lines = vim.api.nvim_buf_get_lines(win.buf_id, 0, -1, false)
+            result = table.concat(buf_lines, "\n")
+            done = true
+            M.clear_active_popups()
+        end,
+    })
+
+    vim.api.nvim_create_autocmd("BufUnload", {
+        group = group,
+        buffer = win.buf_id,
+        callback = function()
+            vim.api.nvim_del_augroup_by_id(group)
+            done = true
+        end,
+    })
+
+    vim.keymap.set("n", "q", function()
+        done = true
+        M.clear_active_popups()
+    end, { buffer = win.buf_id, nowait = true })
+
+    -- Wait for user input (blocking)
+    vim.wait(60000, function() return done end, 100)
+
+    return result
+end
+
 --- @param cb fun(success: boolean, result: string): nil
 --- @param opts {}
 function M.capture_input(cb, opts)

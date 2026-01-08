@@ -119,7 +119,7 @@ function Logger:new(level)
         sink = VoidSink:new(),
         level = level,
         print_on_error = false,
-        extra_params = {},
+        extra_params = { id = 0 },
     }, self)
 end
 
@@ -288,7 +288,10 @@ function Logger:_log(level, msg, ...)
     put_args(log_statement, to_args(...))
     put_args(log_statement, self.extra_params)
 
-    assert(log_statement["id"], "every log must have an id associated with it")
+    -- Allow logs without id for setup/teardown messages
+    if not log_statement["id"] then
+        log_statement["id"] = 0
+    end
 
     local json_string = vim.json.encode(log_statement)
     if self.print_on_error and level == levels.ERROR then

@@ -101,7 +101,7 @@ function M.fn_call(context, cursor)
         return nil
     end
 
-    local query = get_cached_query(lang, fn_call_query)
+    local query = M.get_cached_query(lang, fn_call_query)
     if not query then
         Logger:error(
             "unable to get the fn_call_query",
@@ -110,8 +110,6 @@ function M.fn_call(context, cursor)
             "buffer",
             buffer,
             "ok",
-            type(ok),
-            "query",
             type(query)
         )
         return nil
@@ -202,16 +200,14 @@ function M.containing_function(context, cursor)
         return nil
     end
 
-    local query = get_cached_query(lang, function_query)
+    local query = M.get_cached_query(lang, function_query)
     if not query then
         logger:debug(
-            "LSP: not ok or query",
+            "LSP: unable to get query",
             "query",
             vim.inspect(query),
             "lang",
-            lang,
-            "ok",
-            vim.inspect(ok)
+            lang
         )
         return nil
     end
@@ -248,8 +244,8 @@ function M.containing_function(context, cursor)
         "INVARIANT: found_range is not nil but found node is"
     )
 
-    ok, query = pcall(vim.treesitter.query.get, lang, function_query)
-    if not ok or query == nil then
+    local ok, query2 = pcall(vim.treesitter.query.get, lang, function_query)
+    if not ok or query2 == nil then
         logger:fatal("INVARIANT: found_range ", "range", found_range:to_text())
         return
     end
