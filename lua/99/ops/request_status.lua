@@ -41,8 +41,9 @@ RequestStatus.__index = RequestStatus
 --- @param max_lines number
 --- @param title_line string
 --- @param mark _99.Mark
+--- @param range _99.Range?
 --- @return _99.RequestStatus
-function RequestStatus.new(update_time, max_lines, title_line, mark)
+function RequestStatus.new(update_time, max_lines, title_line, mark, range)
     local self = setmetatable({}, RequestStatus)
     self.update_time = update_time
     self.max_lines = max_lines
@@ -50,7 +51,32 @@ function RequestStatus.new(update_time, max_lines, title_line, mark)
     self.lines = {}
     self.running = false
     self.mark = mark
+    self.range = range
     return self
+end
+
+--- Calculate proper display position for long function definitions
+--- @return number, number
+function RequestStatus:calculate_position()
+    if not self.range then
+        local row, col = vim.api.nvim_buf_get_extmark_by_id(
+            self.mark.buffer,
+            self.mark.nsid,
+            self.mark.id,
+            {}
+        )
+        return row, col
+    end
+
+    local range = self.range
+    local start = range.start
+    local line_count = range.end_.row - range.start.row + 1
+
+    if line_count > 5 then
+        return start:to_vim()
+    else
+        return start:to_vim()
+    end
 end
 
 --- @return string[]
@@ -77,6 +103,7 @@ function RequestStatus:start()
         end
 
         self.status_line:update()
+        local row, col = self:calculate_position()
         self.mark:set_virtual_text(self:get())
         vim.defer_fn(update_spinner, self.update_time)
     end

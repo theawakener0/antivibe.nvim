@@ -8,6 +8,13 @@ local Logger = require("99.logger.logger")
 --- @field languages table<string, _99.LanguageOps>
 local M = {
     languages = {},
+
+    filetype_aliases = {
+        ["h"] = "c",
+        ["hpp"] = "cpp",
+        ["cc"] = "cpp",
+        ["cxx"] = "cpp",
+    },
 }
 
 --- @alias _99.langauge.GetLangParam _99.Location | number?
@@ -17,23 +24,29 @@ local M = {
 --- @return string
 --- @return number
 local function get_langauge(bufferOrLoc)
+    local file_type
+
     if type(bufferOrLoc) == "number" or not bufferOrLoc then
         local buffer = bufferOrLoc or vim.api.nvim_get_current_buf()
-        local file_type =
-            vim.api.nvim_get_option_value("filetype", { buf = buffer })
-        local lang = M.languages[file_type]
-        if not lang then
-            Logger:fatal("language currently not supported", "lang", file_type)
-        end
-        return lang, file_type, buffer
+        file_type = vim.api.nvim_get_option_value("filetype", { buf = buffer })
+    else
+        file_type = bufferOrLoc.file_type
     end
 
-    local file_type = bufferOrLoc.file_type
-    local lang = M.languages[file_type]
+    local resolved_type = M.filetype_aliases[file_type] or file_type
+    local lang = M.languages[resolved_type]
+
     if not lang then
-        Logger:fatal("language currently not supported", "lang", file_type)
+        Logger:warn("language currently not supported", "lang", file_type)
+        return nil, file_type, bufferOrLoc and bufferOrLoc.buffer or vim.api.nvim_get_current_buf()
     end
-    return lang, file_type, bufferOrLoc.buffer
+
+    if type(bufferOrLoc) == "number" or not bufferOrLoc then
+        local buffer = bufferOrLoc or vim.api.nvim_get_current_buf()
+        return lang, resolved_type, buffer
+    end
+
+    return lang, resolved_type, bufferOrLoc.buffer
 end
 
 local function validate_function(fn, file_type)
@@ -45,7 +58,16 @@ end
 --- @param _99 _99.State
 function M.initialize(_99)
     M.languages = {}
-    for _, lang in ipairs(_99.languages) do
+
+    local supported_languages = {
+        "lua",
+        "typescript",
+        "c",
+        "cpp",
+        "go",
+    }
+
+    for _, lang in ipairs(supported_languages) do
         M.languages[lang] = require("99.language." .. lang)
     end
 end
@@ -60,31 +82,5 @@ function M.log_item(_, item_name, buffer)
 
     return lang.log_item(item_name)
 end
-
---[[
--- i wrote this but now i dont know why i did...
--- i must have had a good reason but christmas break made me forget..
---- @param function_node any
----@param body_name string
-function M.find_body(function_node, body_name)
-    for child in function_node:iter_children() do
-        print("test", child:type())
-        if child:type() == body_name then
-            return child
-        else
-            M.find_body(child, body_name)
-        end
-    end
-    return nil
-end
-
---- @param function_node _99.treesitter.TSNode
---- @param buffer number
-function M.get_body(function_node, buffer)
-    local lang, file_type = get_langauge(buffer)
-    local body = lang.names.body
-    assert(body, "body is not defined in language", "language", file_type)
-end
---]]
 
 return M

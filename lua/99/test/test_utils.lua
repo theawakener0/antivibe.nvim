@@ -80,9 +80,63 @@ M.TestProvider = TestProvider
 
 function M.clean_files()
     for _, bufnr in ipairs(M.created_files) do
-        vim.api.nvim_buf_delete(bufnr, { force = true })
+        if vim.api.nvim_buf_is_valid(bufnr) then
+            vim.api.nvim_buf_delete(bufnr, { force = true })
+        end
     end
     M.created_files = {}
+end
+
+--- Wait for condition with timeout
+--- @param predicate fun(): boolean
+--- @param timeout_ms number?
+--- @return boolean success
+function M.wait_for(predicate, timeout_ms)
+    timeout_ms = timeout_ms or 5000
+    local start = vim.loop.hrtime()
+    local elapsed = 0
+
+    while not predicate() and elapsed < timeout_ms do
+        vim.wait(10, function() return false end)
+        elapsed = (vim.loop.hrtime() - start) / 1000000
+    end
+
+    return predicate()
+end
+
+--- Assert condition with timeout
+--- @param predicate fun(): boolean
+--- @param timeout_ms number?
+--- @param message string?
+function M.assert_wait(predicate, timeout_ms, message)
+    local success = M.wait_for(predicate, timeout_ms)
+    if not success then
+        error(message or "Condition not met within timeout")
+    end
+end
+
+--- Check if buffer exists and is valid
+--- @param bufnr number
+--- @return boolean
+function M.is_buffer_valid(bufnr)
+    return vim.api.nvim_buf_is_valid(bufnr)
+end
+
+--- Ensure buffer is cleaned up after test
+--- @param bufnr number
+function M.ensure_buffer_cleanup(bufnr)
+    vim.api.nvim_create_autocmd(
+        "BufWipeout",
+        {
+            callback = function()
+                if M.is_buffer_valid(bufnr) then
+                    vim.api.nvim_buf_delete(bufnr, { force = true })
+                end
+            end,
+            once = true,
+            pattern = string.format("<buffer=%d>", bufnr),
+        }
+    )
 end
 
 ---@param contents string[]
@@ -95,7 +149,7 @@ function M.create_file(contents, file_type, row, col)
     local bufnr = vim.api.nvim_create_buf(false, false)
 
     vim.api.nvim_set_current_buf(bufnr)
-    vim.bo[bufnr].ft = file_type
+    vim.api.nvim_set_option_value("filetype", file_type, { buf = bufnr })
     vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, contents)
     vim.api.nvim_win_set_cursor(0, { row or 1, col or 0 })
 

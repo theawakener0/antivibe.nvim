@@ -75,11 +75,36 @@ local function implement_fn(context)
         on_complete = function(status, response)
             vim.schedule(clean_up)
             if status ~= "success" then
+                local err_msg = response or "No error text provided"
                 logger:fatal(
-                    "unable to implement function, enable and check logger for more details"
+                    "unable to implement function",
+                    "status",
+                    status,
+                    "error",
+                    err_msg
                 )
+
+                if context._99.display_errors then
+                    Window.display_error(
+                        string.format("Error implementing function\n%s", err_msg)
+                    )
+                end
+                return
             end
-            pcall(update_code, context, response)
+
+            local success, err = pcall(update_code, context, response)
+            if not success then
+                logger:error(
+                    "failed to update code after implementation",
+                    "error",
+                    err
+                )
+                if context._99.display_errors then
+                    Window.display_error(
+                        string.format("Failed to insert implementation\n%s", tostring(err))
+                    )
+                end
+            end
         end,
         on_stderr = function(line)
             logger:error("stderr", "line", line)

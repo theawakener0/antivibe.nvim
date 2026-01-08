@@ -1,13 +1,17 @@
-local project_row = 100000000
+local PROJECT_ROW = 100000000
+--- PROJECT_ROW is a scaling factor used for 2D point comparison.
+--- By using a large multiplier, we can encode (row, col) pairs as a single integer
+--- for efficient comparison operations without creating intermediate objects.
+--- This allows us to compare points using simple integer arithmetic.
 
 --- @param point_or_row _99.Point | number
 --- @param col number | nil
 --- @return number
 local function project(point_or_row, col)
     if type(point_or_row) == "number" then
-        return point_or_row * project_row + col
+        return point_or_row * PROJECT_ROW + col
     end
-    return point_or_row.row * project_row + point_or_row.col
+    return point_or_row.row * PROJECT_ROW + point_or_row.col
 end
 
 --- stores all values as 1 based
@@ -178,15 +182,6 @@ function Point.from_mark(mark)
         row = pos[1] + 1,
         col = pos[2] + 1,
     }, Point)
-end
-
---- @return _99.Point
-function Point.from_visual_start() end
-
---- @return _99.Point
-function Point.from_visual_end()
-    --- make sure you dont allow visual line extend beyond the end of the
-    --- actual text line
 end
 
 --- @class _99.Range

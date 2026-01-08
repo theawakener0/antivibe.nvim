@@ -2,22 +2,72 @@ local geo = require("99.geo")
 local Logger = require("99.logger.logger")
 local Range = geo.Range
 
---- @class _99.treesitter.TSNode
---- @field start fun(): number
---- @field end_ fun(): number
-
---- @class _99.treesitter.Node
---- @field start fun(self: _99.treesitter.Node): number, number, number
---- @field end_ fun(self: _99.treesitter.Node): number, number, number
---- @field named fun(self: _99.treesitter.Node): boolean
---- @field type fun(self: _99.treesitter.Node): string
---- @field range fun(self: _99.treesitter.Node): number, number, number, number
-
 local M = {}
 
 local function_query = "99-function"
-local imports_query = "99-imports"
 local fn_call_query = "99-fn-call"
+
+--- Query cache with language+query_name key
+--- @type table<string, vim.treesitter.Query>
+local QUERY_CACHE = {}
+
+--- Cache statistics
+--- @type table<string, {hits: number, misses: number}>
+local CACHE_STATS = {}
+
+--- @param lang string
+--- @param query_name string
+--- @return string cache_key
+local function get_cache_key(lang, query_name)
+    return lang .. "::" .. query_name
+end
+
+--- Get or create cached query
+--- @param lang string
+--- @param query_name string
+--- @return vim.treesitter.Query?
+function M.get_cached_query(lang, query_name)
+    local key = get_cache_key(lang, query_name)
+
+    if QUERY_CACHE[key] then
+        CACHE_STATS[key] = CACHE_STATS[key] or { hits = 0, misses = 0 }
+        CACHE_STATS[key].hits = CACHE_STATS[key].hits + 1
+        Logger:debug("cache hit", "lang", lang, "query", query_name)
+        return QUERY_CACHE[key]
+    end
+
+    CACHE_STATS[key] = CACHE_STATS[key] or { hits = 0, misses = 0 }
+    CACHE_STATS[key].misses = CACHE_STATS[key].misses + 1
+    Logger:debug("cache miss", "lang", lang, "query", query_name)
+
+    local ok, query = pcall(vim.treesitter.query.get, lang, query_name)
+    if not ok or query == nil then
+        Logger:warn(
+            "unable to cache query",
+            "lang",
+            lang,
+            "query",
+            query_name
+        )
+        return nil
+    end
+
+    QUERY_CACHE[key] = query
+    return query
+end
+
+--- Clear all query caches
+function M.clear_query_cache()
+    QUERY_CACHE = {}
+    CACHE_STATS = {}
+    Logger:debug("query cache cleared")
+end
+
+--- Get cache statistics
+--- @return table
+function M.get_cache_stats()
+    return vim.deepcopy(CACHE_STATS)
+end
 
 --- @param buffer number
 ---@param lang string
@@ -51,9 +101,9 @@ function M.fn_call(context, cursor)
         return nil
     end
 
-    local ok, query = pcall(vim.treesitter.query.get, lang, fn_call_query)
-    if not ok or query == nil then
-        logger:error(
+    local query = get_cached_query(lang, fn_call_query)
+    if not query then
+        Logger:error(
             "unable to get the fn_call_query",
             "lang",
             lang,
@@ -67,7 +117,6 @@ function M.fn_call(context, cursor)
         return nil
     end
 
-    --- likely something that needs to be done with treesitter#get_node
     local found = nil
     for _, match, _ in query:iter_matches(root, buffer, 0, -1, { all = true }) do
         for _, nodes in pairs(match) do
@@ -153,8 +202,8 @@ function M.containing_function(context, cursor)
         return nil
     end
 
-    local ok, query = pcall(vim.treesitter.query.get, lang, function_query)
-    if not ok or query == nil then
+    local query = get_cached_query(lang, function_query)
+    if not query then
         logger:debug(
             "LSP: not ok or query",
             "query",
@@ -208,47 +257,6 @@ function M.containing_function(context, cursor)
     --- TODO: we need some language specific things here.
     --- that is because comments above the function needs to considered
     return Function.from_ts_node(found_node, cursor, context)
-end
-
---- @param buffer number
---- @return _99.treesitter.Node[]
-function M.imports(buffer)
-    Logger:assert(false, "not implemented yet", "id", 69420)
-    local lang = vim.bo[buffer].ft
-    local root = tree_root(buffer, lang)
-    if not root then
-        Logger:debug("imports: could not find tree root")
-        return {}
-    end
-
-    local ok, query = pcall(vim.treesitter.query.get, lang, imports_query)
-
-    if not ok or query == nil then
-        Logger:debug(
-            "imports: not ok or query",
-            "query",
-            vim.inspect(query),
-            "lang",
-            lang,
-            "ok",
-            vim.inspect(ok)
-        )
-        return {}
-    end
-
-    local imports = {}
-    for _, match, _ in query:iter_matches(root, buffer, 0, -1, { all = true }) do
-        for id, nodes in pairs(match) do
-            local name = query.captures[id]
-            if name == "import.name" then
-                for _, node in ipairs(nodes) do
-                    table.insert(imports, node)
-                end
-            end
-        end
-    end
-
-    return imports
 end
 
 return M

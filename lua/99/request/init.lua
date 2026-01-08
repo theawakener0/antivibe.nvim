@@ -7,7 +7,9 @@
 --- @field on_complete fun(status: _99.Request.ResponseState, res: string): nil
 
 --- @class _99.Provider
---- @field make_request fun(self: _99.Provider, query: string, request: _99.Request, observer: _99.ProviderObserver)
+--- @field make_request fun(self: _99.Provider, query: string, request: _99.Request, observer: _99.ProviderObserver): nil
+
+local OpenCodeProvider = require("99.request.opencode")
 
 local DevNullObserver = {
     name = "DevNullObserver",
@@ -15,8 +17,6 @@ local DevNullObserver = {
     on_stderr = function() end,
     on_complete = function() end,
 }
-
-local OpenCodeProvider = {}
 
 --- @param fn fun(...: any): nil
 --- @return fun(...: any): nil
@@ -29,113 +29,6 @@ local function once(fn)
         called = true
         fn(...)
     end
-end
-
---- @param query string
----@param request _99.Request
----@param observer _99.ProviderObserver?
-function OpenCodeProvider:make_request(query, request, observer)
-    _ = self
-    local logger = request.logger:set_area("OpenCodeProvider")
-    logger:debug("make_request", "tmp_file", request.context.tmp_file)
-
-    observer = observer or DevNullObserver
-    --- @param status _99.Request.ResponseState
-    ---@param text string
-    local once_complete = once(function(status, text)
-        observer.on_complete(status, text)
-    end)
-
-    local command = { "opencode", "run", "-m", request.context.model, query }
-    logger:debug("make_request", "command", command)
-    vim.system(
-        command,
-        {
-            text = true,
-            stdout = vim.schedule_wrap(function(err, data)
-                logger:debug("stdout", "data", data)
-                if request:is_cancelled() then
-                    once_complete("cancelled", "")
-                    return
-                end
-                if err and err ~= "" then
-                    logger:debug("stdout#error", "err", err)
-                end
-                if not err then
-                    observer.on_stdout(data)
-                end
-            end),
-            stderr = vim.schedule_wrap(function(err, data)
-                logger:debug("stderr", "data", data)
-                if request:is_cancelled() then
-                    once_complete("cancelled", "")
-                    return
-                end
-                if err and err ~= "" then
-                    logger:debug("stderr#error", "err", err)
-                end
-                if not err then
-                    observer.on_stderr(data)
-                end
-            end),
-        },
-        vim.schedule_wrap(function(obj)
-            if request:is_cancelled() then
-                once_complete("cancelled", "")
-                logger:debug("on_complete: request has been cancelled")
-                return
-            end
-            if obj.code ~= 0 then
-                local str = string.format(
-                    "process exit code: %d\n%s",
-                    obj.code,
-                    vim.inspect(obj)
-                )
-                once_complete("failed", str)
-                logger:fatal(
-                    "opencode make_query failed",
-                    "obj from results",
-                    obj
-                )
-            end
-            vim.schedule(function()
-                local ok, res = OpenCodeProvider._retrieve_response(request)
-                if ok then
-                    once_complete("success", res)
-                else
-                    once_complete(
-                        "failed",
-                        "unable to retrieve response from llm"
-                    )
-                end
-            end)
-        end)
-    )
-end
-
---- @param request _99.Request
-function OpenCodeProvider._retrieve_response(request)
-    local logger = request.logger:set_area("OpenCodeProvider")
-    local tmp = request.context.tmp_file
-    local success, result = pcall(function()
-        return vim.fn.readfile(tmp)
-    end)
-
-    if not success then
-        logger:error(
-            "retrieve_results: failed to read file",
-            "tmp_name",
-            tmp,
-            "error",
-            result
-        )
-        return false, ""
-    end
-
-    local str = table.concat(result, "\n")
-    logger:debug("retrieve_results", "results", str)
-
-    return true, str
 end
 
 --- @class _99.Request.Opts
@@ -162,7 +55,7 @@ Request.__index = Request
 --- @param context _99.RequestContext
 --- @return _99.Request
 function Request.new(context)
-    local provider = context._99.provider_override or OpenCodeProvider
+    local provider = context._99.provider_override or OpenCodeProvider.new()
     return setmetatable({
         context = context,
         provider = provider,
@@ -189,7 +82,8 @@ function Request:add_prompt_content(content)
 end
 
 --- @param observer _99.ProviderObserver?
-function Request:start(observer)
+--- @param timeout_ms number?
+function Request:start(observer, timeout_ms)
     self.context:finalize()
     for _, content in ipairs(self.context.ai_context) do
         self:add_prompt_content(content)
@@ -198,8 +92,56 @@ function Request:start(observer)
     local query = table.concat(self._content, "\n")
     observer = observer or DevNullObserver
 
-    self.logger:debug("start", "query", query)
-    self.provider:make_request(query, self, observer)
+    local timeout = timeout_ms or self:default_timeout()
+
+    self.logger:debug("start", "query", query, "timeout_ms", timeout)
+
+    local timeout_timer = vim.loop.new_timer()
+    local timed_out = false
+
+    timeout_timer:start(timeout, 0, vim.schedule_wrap(function()
+        if not self:is_cancelled() then
+            timed_out = true
+            self:cancel()
+            self.logger:warn("request timed out", "timeout_ms", timeout)
+
+            if observer.on_complete then
+                observer.on_complete("failed", "Request timed out after " .. timeout .. "ms")
+            end
+        end
+    end))
+
+    local wrapped_observer = {
+        on_stdout = function(line)
+            if not timed_out and observer.on_stdout then
+                observer.on_stdout(line)
+            end
+        end,
+        on_stderr = function(line)
+            if not timed_out and observer.on_stderr then
+                observer.on_stderr(line)
+            end
+        end,
+        on_complete = function(status, res)
+            timeout_timer:stop()
+            if observer.on_complete then
+                observer.on_complete(status, res)
+            end
+        end,
+    }
+
+    self.provider:make_request(query, self, wrapped_observer)
+end
+
+--- @return number
+function Request:default_timeout()
+    local operation_type = self.context and self.context.operation_type or "default"
+
+    if self.context._99 and self.context._99.timeout then
+        return self.context._99.timeout[operation_type] or self.context._99.timeout.default or 30000
+    end
+
+    return 30000
 end
 
 return Request

@@ -49,6 +49,10 @@ end
 
 --- @return boolean
 function Mark:is_valid()
+    if not vim.api.nvim_buf_is_valid(self.buffer) then
+        return false
+    end
+
     local pos =
         vim.api.nvim_buf_get_extmark_by_id(self.buffer, self.nsid, self.id, {})
     return #pos > 0
