@@ -1,128 +1,127 @@
-## The AI Agent That Neovim Deserves
-This is an example repo where i want to test what i think the ideal AI workflow
-is for people who dont have "skill issues."  This is meant to streamline the requests to AI and limit them it restricted areas.  For more general requests, please just use opencode.  Dont use neovim.
+# antivibe.nvim
 
-## Warning
-1. Prompts are temporary right now. they could be massively improved
-2. TS and Lua language support, open to more
-3. Still very alpha, could have severe problems
+> A fork of [ThePrimeagen/99](https://github.com/ThePrimeagen/99) — The AI agent that Neovim deserves
 
-## How to use
-**you must have opencode installed and setup**
+This is a modern Neovim fork of the original 99 plugin, bringing you an optimized AI workflow for developers who don't have "skill issues." It streamlines AI requests to restricted areas of your code, making pair programming more focused and productive.
 
-Add the following configuration to your neovim config
+For general requests, please use [opencode](https://opencode.ai). For focused, context-aware code assistance, use antivibe.nvim.
 
-I make the assumption you are using Lazy
-```lua
-	{
-		"ThePrimeagen/99",
-		config = function()
-			local _99 = require("99")
+## Installation
 
-            -- For logging that is to a file if you wish to trace through requests
-            -- for reporting bugs, i would not rely on this, but instead the provided
-            -- logging mechanisms within 99.  This is for more debugging purposes
-            local cwd = vim.uv.cwd()
-            local basename = vim.fs.basename(cwd)
-			_99.setup({
-				logger = {
-					level = _99.DEBUG,
-					path = "/tmp/" .. basename .. ".99.debug",
-					print_on_error = true,
-				},
-
-                --- WARNING: if you change cwd then this is likely broken
-                --- ill likely fix this in a later change
-                ---
-                --- md_files is a list of files to look for and auto add based on the location
-                --- of the originating request.  That means if you are at /foo/bar/baz.lua
-                --- the system will automagically look for:
-                --- /foo/bar/AGENT.md
-                --- /foo/AGENT.md
-                --- assuming that /foo is project root (based on cwd)
-				md_files = {
-					"AGENT.md",
-				},
-			})
-
-            -- Create your own short cuts for the different types of actions
-			vim.keymap.set("n", "<leader>9f", function()
-				_99.fill_in_function()
-			end)
-            -- take extra note that i have visual selection only in v mode
-            -- technically whatever your last visual selection is, will be used
-            -- so i have this set to visual mode so i dont screw up and use an
-            -- old visual selection
-            --
-            -- likely ill add a mode check and assert on required visual mode
-            -- so just prepare for it now
-			vim.keymap.set("v", "<leader>9v", function()
-				_99.visual()
-			end)
-
-            --- if you have a request you dont want to make any changes, just cancel it
-			vim.keymap.set("v", "<leader>9s", function()
-				_99.stop_all_requests()
-			end)
-		end,
-	},
-```
-
-## API
-You can see the full api at [99 API](./lua/99/init.lua)
-
-## Reporting a bug
-To report a bug, please provide the full running debug logs.  This may require
-a bit of back and forth.
-
-Please do not request features.  We will hold a public discussion on Twitch about
-features, which will be a much better jumping point then a bunch of requests that i have to close down.  If you do make a feature request ill just shut it down instantly.
-
-### The logs
-To get the _last_ run's logs execute `:lua require("99").view_logs()`.  If this happens to not be the log, you can navigate the logs with:
+### Lazy.nvim
 
 ```lua
-function _99.prev_request_logs() ... end
-function _99.next_request_logs() ... end
-```
+{
+  "theawakener0/antivibe.nvim",
+  config = function()
+    local antivibe = require("99")
 
-### Dont forget
-If there are secrets or other information in the logs you want to be removed make sure that you delete the `query` printing.  This will likely contain information you may not want to share.
+    -- Optional: Configure logging for debugging
+    local cwd = vim.uv.cwd()
+    local basename = vim.fs.basename(cwd)
 
-### The Great Twitch Discussion
-I will conduct a stream on Jan 30 at 11am The Lords Time (Montana Time/Mountain Time (same thing))
-we will do an extensive deep dive on 99 and what we think is good and bad.
+    antivibe.setup({
+      -- Logging configuration
+      logger = {
+        level = antivibe.DEBUG,  -- or "INFO", "WARN", "ERROR", "FATAL"
+        path = "/tmp/" .. basename .. ".99.debug",
+        print_on_error = true,
+        max_requests_cached = 5,
+      },
 
-### Known usability issues
-* long function definition issues.
-```typescript
-function display_text(
-  game_state: GameState,
-  text: string,
-  x: number,
-  y: number,
-): void {
-  const ctx = game_state.canvas.getContext("2d");
-  assert(ctx, "cannot get game context");
-  ctx.fillStyle = "white";
-  ctx.fillText(text, x, y);
+      -- Model to use
+      model = "opencode/claude-opus-4-5",
+
+      -- Files to automatically include in context
+      md_files = {
+        "AGENT.md",
+      },
+
+      -- Supported languages
+      languages = {
+        "lua",
+        "typescript",
+        "javascript",
+        "c",
+        "cpp",
+        "go",
+        "rust",
+        "python",
+      },
+
+      -- Virtual text options
+      virtual_text = {
+        enabled = true,
+        max_lines = 3,
+        show_ai_stdout = true,
+      },
+
+      -- AI stdout preview rows
+      ai_stdout_rows = 3,
+
+      -- Timeout settings (in milliseconds)
+      timeout = {
+        fill_in_function = 30000,
+        visual = 45000,
+        implement_fn = 30000,
+        generate_tests = 60000,
+        explain_code = 30000,
+        refactor = 45000,
+        inline_doc = 30000,
+      },
+    })
+
+    -- Keymaps
+    vim.keymap.set("n", "<leader>9f", function()
+      antivibe.fill_in_function()
+    end, { desc = "AI: Fill in function" })
+
+    vim.keymap.set("v", "<leader>9v", function()
+      antivibe.visual()
+    end, { desc = "AI: Visual selection" })
+
+    vim.keymap.set("v", "<leader>9s", function()
+      antivibe.stop_all_requests()
+    end, { desc = "AI: Stop all requests" })
+  end,
 }
 ```
 
-Then the virtual text will be displayed one line below "function" instead of first line in body
+## Features
 
-* in lua and likely jsdoc, the replacing function will duplicate comment definitions
-  * this wont happen in languages with types in the syntax
+- **Fill in function**: Automatically complete function bodies
+- **Visual selection**: Refactor and improve selected code
+- **Generate tests**: Create unit tests for your code
+- **Explain code**: Get detailed explanations of code blocks
+- **Refactor**: Intelligent code refactoring
+- **Inline documentation**: Generate inline documentation
+- **Multi-language support**: Lua, TypeScript, JavaScript, C, C++, Go, Rust, Python
 
-* visual selection sends the whole file.  there is likely a better way to use
-  treesitter to make the selection of the content being sent more sensible.
+## API
 
-* for both fill in function and visual there should be a better way to gather
-context.  I think that treesitter + lsp could be really powerful.  I am going
-to experiment with this more once i get access to the FIM models.  This could
-make the time to completion less than a couple seconds, which would be
-incredible
+See the full API documentation at [lua/99/init.lua](./lua/99/init.lua)
 
-* every now and then the replacement seems to get jacked up and it screws up
-what i am currently editing..  I think it may have something to do with auto-complete
-  * definitely not suure on this one
+## Requirements
+
+- [opencode](https://opencode.ai) CLI installed and configured
+- Neovim 0.9+
+- [nvim-treesitter](https://github.com/nvim-treesitter/nvim-treesitter)
+
+## Status
+
+This project is under active development. While based on the original 99 plugin, this fork includes improvements and optimizations for a better developer experience.
+
+### Known Issues
+
+- Long function definitions may display virtual text one line below "function"
+- Lua and JSDoc replacements may duplicate comment definitions
+- Visual selection currently sends the entire file
+- Context gathering could be improved with better tree-sitter and LSP integration
+
+## Credits
+
+Original work by [ThePrimeagen](https://github.com/ThePrimeagen/99)
+
+## License
+
+Same as the original [ThePrimeagen/99](https://github.com/ThePrimeagen/99)
