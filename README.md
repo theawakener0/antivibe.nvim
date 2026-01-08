@@ -23,7 +23,7 @@ For general requests, please use [opencode](https://opencode.ai). For focused, c
     antivibe.setup({
       -- Logging configuration
       logger = {
-        level = antivibe.DEBUG,  -- or "INFO", "WARN", "ERROR", "FATAL"
+        level = "DEBUG",  -- or "INFO", "WARN", "ERROR", "FATAL"
         path = "/tmp/" .. basename .. ".99.debug",
         print_on_error = true,
         max_requests_cached = 5,
